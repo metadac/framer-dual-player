@@ -1,0 +1,22 @@
+{
+  "name": "framer-dual-player",
+  "version": "4.0.0",
+  "main": "./src/components/DualViewPlayer.tsx",
+  "scripts": {
+    "dev": "framer",
+    "build": "tsc",
+    "lint": "eslint src/**/*.{ts,tsx}",
+    "format": "prettier --write src/**/*.{ts,tsx}"
+  },
+  "dependencies": {
+    "framer": "^2.0.0",
+    "react": "^18.0.0",
+    "hls.js": "^1.5.13"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "typescript": "^5.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0"
+  }
+}
