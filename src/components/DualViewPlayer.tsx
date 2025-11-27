@@ -3,7 +3,7 @@ import { addPropertyControls, ControlType } from "framer"
 
 /* ===== Types & Props ===== */
 type View = "mentor" | "display"
-type TimestampItem = { label: string; time: string }
+type TimestampItem = { label: string; time: string; deepLink?: string }
 type Chapter = { label: string; t: number }
 type MaybeHls = any
 
@@ -36,6 +36,7 @@ type Props = {
     pipMaxPct?: number // 44
 
     timestamps?: TimestampItem[] // [{label:"Intro", time:"0:00"}, …]
+    baseUrl?: string // Base URL for deep links (e.g., "https://dacademy.metadac.io")
     enableDeepLinks?: boolean
     updateUrlOnSeek?: boolean
 
@@ -302,6 +303,7 @@ export default function DualViewPlayer_v4_0({
     pipMinPct = 12,
     pipMaxPct = 44,
     timestamps = [],
+    baseUrl = "https://dacademy.metadac.io",
     enableDeepLinks = true,
     updateUrlOnSeek = true,
     skipSmall = 0.25,
@@ -1855,8 +1857,18 @@ addPropertyControls(DualViewPlayer_v4_0, {
                     type: ControlType.String,
                     title: "Time (1:23 / 83 / 1m23s)",
                 },
+                deepLink: {
+                    type: ControlType.String,
+                    title: "Deep Link (copy this URL)",
+                },
             },
         },
+    },
+
+    baseUrl: {
+        title: "Base URL for Deep Links",
+        type: ControlType.String,
+        defaultValue: "https://dacademy.metadac.io",
     },
 
     enableDeepLinks: {
