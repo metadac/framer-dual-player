@@ -3,7 +3,7 @@ import { addPropertyControls, ControlType } from "framer"
 
 /* ===== Types & Props ===== */
 type View = "mentor" | "display"
-type TimestampItem = { label: string; time: string }
+type TimestampItem = { label: string; time: string; deepLink?: string }
 type Chapter = { label: string; t: number }
 type MaybeHls = any
 
@@ -36,6 +36,7 @@ type Props = {
     pipMaxPct?: number // 44
 
     timestamps?: TimestampItem[] // [{label:"Intro", time:"0:00"}, …]
+    baseUrl?: string // Base URL for deep links (e.g., "https://dacademy.metadac.io")
     enableDeepLinks?: boolean
     updateUrlOnSeek?: boolean
 
@@ -302,6 +303,7 @@ export default function DualViewPlayer_v4_0({
     pipMinPct = 12,
     pipMaxPct = 44,
     timestamps = [],
+    baseUrl = "https://dacademy.metadac.io",
     enableDeepLinks = true,
     updateUrlOnSeek = true,
     skipSmall = 0.25,
@@ -339,16 +341,6 @@ export default function DualViewPlayer_v4_0({
     const [bufferedPct, setBufferedPct] = React.useState(0)
     const [showHelp, setShowHelp] = React.useState(false)
 
-    // Chapters
-    const chapters = React.useMemo(
-        () => chaptersFromArray(timestamps),
-        [timestamps]
-    )
-    const [tooltip, setTooltip] = React.useState<{
-        leftPct: number
-        text: string
-    } | null>(null)
-
     // Quality state
     const [mentorLevels, setMentorLevels] = React.useState<number[]>([])
     const [displayLevels, setDisplayLevels] = React.useState<number[]>([])
@@ -371,9 +363,6 @@ export default function DualViewPlayer_v4_0({
     const [qOpen, setQOpen] = React.useState(false)
     const anyHls =
         isHls(extractSrc(mentorHtml)) || isHls(extractSrc(displayHtml))
-
-    // Chapters popover
-    const [chaptersOpen, setChaptersOpen] = React.useState(false)
 
     // PiP placement
     const storedKey = `dvp.${instanceId}.pip`
@@ -867,7 +856,7 @@ export default function DualViewPlayer_v4_0({
         apply(displayHlsRef.current)
     }
 
-    /* ----- Deep links ----- */
+    /* ----- Deep links + External seek events (from cards/AI) ----- */
     React.useEffect(() => {
         if (!enableDeepLinks) return
         const parseFromUrl = () => {
@@ -885,7 +874,27 @@ export default function DualViewPlayer_v4_0({
             if (tt !== null) seekTo(tt)
         }
         window.addEventListener("hashchange", onHash)
-        return () => window.removeEventListener("hashchange", onHash)
+
+        // Listen for custom seek events from cards or AI
+        const handleSeekEvent = (e: Event) => {
+            const customEvent = e as CustomEvent
+            const { time } = customEvent.detail || {}
+            if (typeof time === 'number') {
+                seekTo(time)
+                // Auto-play when triggered externally
+                const a = mentorRef.current, b = displayRef.current
+                if (a && b && a.paused) {
+                    a.play().catch(() => {})
+                    b.play().catch(() => {})
+                }
+            }
+        }
+        window.addEventListener('video-seek', handleSeekEvent)
+
+        return () => {
+            window.removeEventListener("hashchange", onHash)
+            window.removeEventListener('video-seek', handleSeekEvent)
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [enableDeepLinks, duration])
 
@@ -1163,6 +1172,7 @@ export default function DualViewPlayer_v4_0({
         <div
             ref={containerRef}
             style={container}
+            data-video-player
             onMouseMove={bumpUI}
             onMouseLeave={() => !alwaysShowControls && setShowUI(false)}
         >
@@ -1400,53 +1410,6 @@ export default function DualViewPlayer_v4_0({
                             }}
                             aria-label="Seek"
                         />
-
-                        {/* small flags positioned just above the bar, clickable */}
-                        {chapters.length > 0 && (
-                            <div
-                                style={{
-                                    position: "absolute",
-                                    left: 0,
-                                    right: 0,
-                                    bottom: compactUI ? 8 : 10,
-                                    height: 10,
-                                    zIndex: 3,
-                                }}
-                            >
-                                {chapters.map((c, i) => {
-                                    const leftPct = duration
-                                        ? (c.t / duration) * 100
-                                        : 0
-                                    return (
-                                        <div
-                                            key={i}
-                                            title={`${c.label} • ${fmt(c.t)}`}
-                                            onMouseEnter={() =>
-                                                setTooltip({
-                                                    leftPct,
-                                                    text: `${c.label} • ${fmt(c.t)}`,
-                                                })
-                                            }
-                                            onMouseLeave={() =>
-                                                setTooltip(null)
-                                            }
-                                            onClick={() => seekTo(c.t)}
-                                            style={{
-                                                position: "absolute",
-                                                left: `calc(${leftPct}% - 1px)`,
-                                                bottom: 0,
-                                                width: 2,
-                                                height: 8,
-                                                borderRadius: 2,
-                                                background:
-                                                    "rgba(255,255,255,.9)",
-                                                cursor: "pointer",
-                                            }}
-                                        />
-                                    )
-                                })}
-                            </div>
-                        )}
                     </div>
 
                     <span style={{ color: "#fff", fontSize: 12, minWidth: 46 }}>
@@ -1526,73 +1489,6 @@ export default function DualViewPlayer_v4_0({
                     <Btn onFire={swapView} title="Swap View (T)">
                         <Icon.Swap />
                     </Btn>
-
-                    {/* Chapters popover */}
-                    {chapters.length > 0 && (
-                        <div style={{ position: "relative" }}>
-                            <Btn
-                                onFire={() => setChaptersOpen((o) => !o)}
-                                title="Chapters"
-                            >
-                                <Icon.Chapter />
-                            </Btn>
-                            {chaptersOpen && (
-                                <div
-                                    onMouseEnter={() => setHoldUI(true)}
-                                    onMouseLeave={() => {
-                                        setHoldUI(false)
-                                        setChaptersOpen(false)
-                                        bumpUI()
-                                    }}
-                                    style={{
-                                        position: "absolute",
-                                        left: 0,
-                                        bottom: "calc(100% + 8px)",
-                                        minWidth: 220,
-                                        maxHeight: 220,
-                                        overflow: "auto",
-                                        background: "rgba(0,0,0,.8)",
-                                        color: "#fff",
-                                        borderRadius: 10,
-                                        border: "1px solid rgba(255,255,255,.2)",
-                                        padding: 8,
-                                        zIndex: 50,
-                                    }}
-                                >
-                                    {chapters.map((c, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={(e) => {
-                                                e.preventDefault()
-                                                seekTo(c.t)
-                                                setChaptersOpen(false)
-                                            }}
-                                            style={{
-                                                display: "flex",
-                                                width: "100%",
-                                                justifyContent: "space-between",
-                                                alignItems: "center",
-                                                background: "transparent",
-                                                color: "#fff",
-                                                border: "none",
-                                                cursor: "pointer",
-                                                padding: "6px 8px",
-                                                borderRadius: 8,
-                                                fontSize: FONT,
-                                            }}
-                                        >
-                                            <span style={{ opacity: 0.9 }}>
-                                                {c.label}
-                                            </span>
-                                            <span style={{ opacity: 0.6 }}>
-                                                {fmt(c.t)}
-                                            </span>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
 
                     {/* Quality popover */}
                     {anyHls && (
@@ -1688,23 +1584,6 @@ export default function DualViewPlayer_v4_0({
                         </Btn>
                     )}
 
-                    {/* Share */}
-                    <Btn
-                        onFire={() => {
-                            try {
-                                const url = new URL(window.location.href)
-                                url.searchParams.set(
-                                    "t",
-                                    Math.floor(current).toString()
-                                )
-                                navigator.clipboard?.writeText(url.toString())
-                            } catch {}
-                        }}
-                        title="Copy link to current time"
-                    >
-                        <Icon.Link />
-                    </Btn>
-
                     {/* Fullscreen */}
                     <div style={{ marginLeft: "auto" }}>
                         <Btn
@@ -1722,34 +1601,6 @@ export default function DualViewPlayer_v4_0({
                     </div>
                 </div>
             </div>
-
-            {/* Chapter tooltip just above the bar */}
-            {tooltip && (
-                <div
-                    style={{
-                        position: "absolute",
-                        left: `${tooltip.leftPct}%`,
-                        bottom: compactUI ? 44 : 56,
-                        transform: "translateX(-50%)",
-                        pointerEvents: "none",
-                        zIndex: 60,
-                    }}
-                >
-                    <div
-                        style={{
-                            background: "rgba(0,0,0,.85)",
-                            color: "#fff",
-                            border: "1px solid rgba(255,255,255,.2)",
-                            borderRadius: 8,
-                            padding: "3px 8px",
-                            fontSize: 12,
-                            whiteSpace: "nowrap",
-                        }}
-                    >
-                        {tooltip.text}
-                    </div>
-                </div>
-            )}
 
             {/* Buffering / Error overlays */}
             {isBuffering && !errorText && (
@@ -2027,8 +1878,18 @@ addPropertyControls(DualViewPlayer_v4_0, {
                     type: ControlType.String,
                     title: "Time (1:23 / 83 / 1m23s)",
                 },
+                deepLink: {
+                    type: ControlType.String,
+                    title: "Deep Link (copy this URL)",
+                },
             },
         },
+    },
+
+    baseUrl: {
+        title: "Base URL for Deep Links",
+        type: ControlType.String,
+        defaultValue: "https://dacademy.metadac.io",
     },
 
     enableDeepLinks: {
