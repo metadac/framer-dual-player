@@ -352,6 +352,10 @@ export default function DualViewPlayer_v4_0({
     // Quality state
     const [mentorLevels, setMentorLevels] = React.useState<number[]>([])
     const [displayLevels, setDisplayLevels] = React.useState<number[]>([])
+    const streamQualities = React.useMemo(
+        () => new Set([...mentorLevels, ...displayLevels]),
+        [mentorLevels, displayLevels]
+    )
     const qualities = React.useMemo(
         () =>
             Array.from(
@@ -837,6 +841,7 @@ export default function DualViewPlayer_v4_0({
         const apply = (hls: MaybeHls | null) => {
             if (!hls || !hls.levels) return
             if (height === -1) {
+                // Enable auto level selection
                 hls.currentLevel = -1
                 return
             }
@@ -850,7 +855,10 @@ export default function DualViewPlayer_v4_0({
                     idx = i
                 }
             })
-            if (idx >= 0) hls.currentLevel = idx
+            if (idx >= 0) {
+                // Set currentLevel to pin quality and disable auto-level
+                hls.currentLevel = idx
+            }
         }
         apply(mentorHlsRef.current)
         apply(displayHlsRef.current)
@@ -1636,28 +1644,32 @@ export default function DualViewPlayer_v4_0({
                                     >
                                         Auto
                                     </button>
-                                    {qualities.map((h) => (
-                                        <button
-                                            key={h}
-                                            onClick={() => {
-                                                setQualityForBoth(h)
-                                                setQOpen(false)
-                                            }}
-                                            style={{
-                                                width: "100%",
-                                                textAlign: "left",
-                                                padding: "6px 8px",
-                                                background: "transparent",
-                                                color: "#fff",
-                                                border: "none",
-                                                cursor: "pointer",
-                                                borderRadius: 8,
-                                                fontSize: FONT,
-                                            }}
-                                        >
-                                            {h}p
-                                        </button>
-                                    ))}
+                                    {qualities.map((h) => {
+                                        const isNative = streamQualities.has(h)
+                                        return (
+                                            <button
+                                                key={h}
+                                                onClick={() => {
+                                                    setQualityForBoth(h)
+                                                    setQOpen(false)
+                                                }}
+                                                style={{
+                                                    width: "100%",
+                                                    textAlign: "left",
+                                                    padding: "6px 8px",
+                                                    background: "transparent",
+                                                    color: "#fff",
+                                                    border: "none",
+                                                    cursor: "pointer",
+                                                    borderRadius: 8,
+                                                    fontSize: FONT,
+                                                    opacity: isNative ? 1 : 0.5,
+                                                }}
+                                            >
+                                                {h}p
+                                            </button>
+                                        )
+                                    })}
                                 </div>
                             )}
                         </div>
