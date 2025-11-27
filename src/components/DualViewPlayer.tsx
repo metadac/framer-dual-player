@@ -275,6 +275,9 @@ const Icon = {
     ),
 }
 
+/* ===== Constants ===== */
+const STANDARD_RESOLUTIONS = [1080, 720, 540, 360, 240]
+
 /* ===== Component ===== */
 export default function DualViewPlayer_v4_0({
     mentorHtml,
@@ -349,11 +352,19 @@ export default function DualViewPlayer_v4_0({
     // Quality state
     const [mentorLevels, setMentorLevels] = React.useState<number[]>([])
     const [displayLevels, setDisplayLevels] = React.useState<number[]>([])
+    const streamQualities = React.useMemo(
+        () => new Set([...mentorLevels, ...displayLevels]),
+        [mentorLevels, displayLevels]
+    )
     const qualities = React.useMemo(
         () =>
-            Array.from(new Set([...mentorLevels, ...displayLevels])).sort(
-                (a, b) => b - a
-            ),
+            Array.from(
+                new Set([
+                    ...mentorLevels,
+                    ...displayLevels,
+                    ...STANDARD_RESOLUTIONS,
+                ])
+            ).sort((a, b) => b - a),
         [mentorLevels, displayLevels]
     )
     const [quality, setQuality] = React.useState<number | -1>(-1)
@@ -828,11 +839,14 @@ export default function DualViewPlayer_v4_0({
     const setQualityForBoth = (height: number | -1) => {
         setQuality(height)
         const apply = (hls: MaybeHls | null) => {
-            if (!hls || !hls.levels) return
+            if (!hls || !hls.levels || hls.levels.length === 0) return
             if (height === -1) {
+                // Enable auto level selection (ABR)
                 hls.currentLevel = -1
+                hls.nextLevel = -1
                 return
             }
+            // Find the level index with the exact or closest height match
             let idx = -1,
                 best = Number.MAX_SAFE_INTEGER
             hls.levels.forEach((L: any, i: number) => {
@@ -843,7 +857,11 @@ export default function DualViewPlayer_v4_0({
                     idx = i
                 }
             })
-            if (idx >= 0) hls.currentLevel = idx
+            if (idx >= 0) {
+                // Force quality switch: nextLevel for next segment, currentLevel to persist
+                hls.nextLevel = idx
+                hls.currentLevel = idx
+            }
         }
         apply(mentorHlsRef.current)
         apply(displayHlsRef.current)
@@ -1629,39 +1647,32 @@ export default function DualViewPlayer_v4_0({
                                     >
                                         Auto
                                     </button>
-                                    {qualities.length === 0 && (
-                                        <div
-                                            style={{
-                                                padding: "6px 8px",
-                                                opacity: 0.65,
-                                                fontSize: FONT,
-                                            }}
-                                        >
-                                            Auto (native or single quality)
-                                        </div>
-                                    )}
-                                    {qualities.map((h) => (
-                                        <button
-                                            key={h}
-                                            onClick={() => {
-                                                setQualityForBoth(h)
-                                                setQOpen(false)
-                                            }}
-                                            style={{
-                                                width: "100%",
-                                                textAlign: "left",
-                                                padding: "6px 8px",
-                                                background: "transparent",
-                                                color: "#fff",
-                                                border: "none",
-                                                cursor: "pointer",
-                                                borderRadius: 8,
-                                                fontSize: FONT,
-                                            }}
-                                        >
-                                            {h}p
-                                        </button>
-                                    ))}
+                                    {qualities.map((h) => {
+                                        const isNative = streamQualities.has(h)
+                                        return (
+                                            <button
+                                                key={h}
+                                                onClick={() => {
+                                                    setQualityForBoth(h)
+                                                    setQOpen(false)
+                                                }}
+                                                style={{
+                                                    width: "100%",
+                                                    textAlign: "left",
+                                                    padding: "6px 8px",
+                                                    background: "transparent",
+                                                    color: "#fff",
+                                                    border: "none",
+                                                    cursor: "pointer",
+                                                    borderRadius: 8,
+                                                    fontSize: FONT,
+                                                    opacity: isNative ? 1 : 0.5,
+                                                }}
+                                            >
+                                                {h}p
+                                            </button>
+                                        )
+                                    })}
                                 </div>
                             )}
                         </div>
