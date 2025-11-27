@@ -856,7 +856,7 @@ export default function DualViewPlayer_v4_0({
         apply(displayHlsRef.current)
     }
 
-    /* ----- Deep links ----- */
+    /* ----- Deep links + External seek events (from cards/AI) ----- */
     React.useEffect(() => {
         if (!enableDeepLinks) return
         const parseFromUrl = () => {
@@ -874,7 +874,27 @@ export default function DualViewPlayer_v4_0({
             if (tt !== null) seekTo(tt)
         }
         window.addEventListener("hashchange", onHash)
-        return () => window.removeEventListener("hashchange", onHash)
+
+        // Listen for custom seek events from cards or AI
+        const handleSeekEvent = (e: Event) => {
+            const customEvent = e as CustomEvent
+            const { time } = customEvent.detail || {}
+            if (typeof time === 'number') {
+                seekTo(time)
+                // Auto-play when triggered externally
+                const a = mentorRef.current, b = displayRef.current
+                if (a && b && a.paused) {
+                    a.play().catch(() => {})
+                    b.play().catch(() => {})
+                }
+            }
+        }
+        window.addEventListener('video-seek', handleSeekEvent)
+
+        return () => {
+            window.removeEventListener("hashchange", onHash)
+            window.removeEventListener('video-seek', handleSeekEvent)
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [enableDeepLinks, duration])
 
@@ -1152,6 +1172,7 @@ export default function DualViewPlayer_v4_0({
         <div
             ref={containerRef}
             style={container}
+            data-video-player
             onMouseMove={bumpUI}
             onMouseLeave={() => !alwaysShowControls && setShowUI(false)}
         >
