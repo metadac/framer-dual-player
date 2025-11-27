@@ -839,12 +839,14 @@ export default function DualViewPlayer_v4_0({
     const setQualityForBoth = (height: number | -1) => {
         setQuality(height)
         const apply = (hls: MaybeHls | null) => {
-            if (!hls || !hls.levels) return
+            if (!hls || !hls.levels || hls.levels.length === 0) return
             if (height === -1) {
-                // Enable auto level selection
+                // Enable auto level selection (ABR)
                 hls.currentLevel = -1
+                hls.nextLevel = -1
                 return
             }
+            // Find the level index with the exact or closest height match
             let idx = -1,
                 best = Number.MAX_SAFE_INTEGER
             hls.levels.forEach((L: any, i: number) => {
@@ -856,7 +858,8 @@ export default function DualViewPlayer_v4_0({
                 }
             })
             if (idx >= 0) {
-                // Set currentLevel to pin quality and disable auto-level
+                // Force quality switch: nextLevel for next segment, currentLevel to persist
+                hls.nextLevel = idx
                 hls.currentLevel = idx
             }
         }
