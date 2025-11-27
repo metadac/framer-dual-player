@@ -1020,7 +1020,7 @@ export default function DualViewPlayer_v4_0({
         const dx = ((e.clientX - drag.current.startX) / rect.width) * 100
         const dy = ((e.clientY - drag.current.startY) / rect.height) * 100
         const maxW = 98 - pipSize
-        const maxH = 98 - (pipSize * 9) / 16
+        const maxH = 98 - (pipSize * 9) / 16 - 8 // Added padding for control bar
         let x = clamp(drag.current.baseX + dx, 2, maxW)
         let y = clamp(drag.current.baseY + dy, 2, maxH)
         if (pipSnap) {
@@ -1050,7 +1050,34 @@ export default function DualViewPlayer_v4_0({
         e.preventDefault()
         e.stopPropagation()
         const dir = e.deltaY > 0 ? -1 : 1
-        setPipSize((s) => clamp(Math.round(s + dir * 2), pipMinPct, pipMaxPct))
+        const newSize = clamp(Math.round(pipSize + dir * 2), pipMinPct, pipMaxPct)
+
+        // Calculate new boundaries with the new size
+        const maxW = 98 - newSize
+        const maxH = 98 - (newSize * 9) / 16 - 8 // Added padding for control bar
+
+        // Adjust position if it would go out of bounds with new size
+        const newX = clamp(pipPos.x, 2, maxW)
+        const newY = clamp(pipPos.y, 2, maxH)
+
+        setPipSize(newSize)
+
+        // Update position if it changed to keep within bounds
+        if (newX !== pipPos.x || newY !== pipPos.y) {
+            setPipPos({ x: newX, y: newY })
+            // Save position if remember is enabled
+            if (pipRememberPosition) {
+                try {
+                    localStorage.setItem(storedKey, JSON.stringify({ x: newX, y: newY }))
+                    localStorage.setItem(storedSizeKey, JSON.stringify(newSize))
+                } catch {}
+            }
+        } else if (pipRememberPosition) {
+            // Just save the size if position didn't change
+            try {
+                localStorage.setItem(storedSizeKey, JSON.stringify(newSize))
+            } catch {}
+        }
     }
 
     /* ----- Styles ----- */
