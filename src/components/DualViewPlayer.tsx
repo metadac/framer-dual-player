@@ -1020,7 +1020,7 @@ export default function DualViewPlayer_v4_0({
         const dx = ((e.clientX - drag.current.startX) / rect.width) * 100
         const dy = ((e.clientY - drag.current.startY) / rect.height) * 100
         const maxW = 98 - pipSize
-        const maxH = 98 - (pipSize * 9) / 16 - 8 // Added padding for control bar
+        const maxH = 98 - (pipSize * 9) / 16 - 12 // Added padding for control bar
         let x = clamp(drag.current.baseX + dx, 2, maxW)
         let y = clamp(drag.current.baseY + dy, 2, maxH)
         if (pipSnap) {
@@ -1054,7 +1054,7 @@ export default function DualViewPlayer_v4_0({
 
         // Calculate new boundaries with the new size
         const maxW = 98 - newSize
-        const maxH = 98 - (newSize * 9) / 16 - 8 // Added padding for control bar
+        const maxH = 98 - (newSize * 9) / 16 - 12 // Added padding for control bar
 
         // Adjust position if it would go out of bounds with new size
         const newX = clamp(pipPos.x, 2, maxW)
