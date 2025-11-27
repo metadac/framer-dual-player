@@ -322,6 +322,8 @@ export default function DualViewPlayer_v4_0({
     const mentorRef = React.useRef<HTMLVideoElement>(null)
     const displayRef = React.useRef<HTMLVideoElement>(null)
     const pipCanvasRef = React.useRef<HTMLCanvasElement>(null)
+    const controlsRef = React.useRef<HTMLDivElement>(null)
+    const [bottomSafePct, setBottomSafePct] = React.useState(15) // default safety
 
     const mentorHlsRef = React.useRef<MaybeHls | null>(null)
     const displayHlsRef = React.useRef<MaybeHls | null>(null)
@@ -454,6 +456,27 @@ export default function DualViewPlayer_v4_0({
     React.useEffect(() => {
         if (alwaysShowControls) setShowUI(true)
     }, [alwaysShowControls])
+
+    /* ----- Measure controls height for PiP bottom boundary ----- */
+    React.useLayoutEffect(() => {
+        const update = () => {
+            const container = containerRef.current
+            const controls = controlsRef.current
+            if (!container || !controls) return
+
+            const ch = controls.getBoundingClientRect().height
+            const hh = container.getBoundingClientRect().height
+            if (!hh) return
+
+            // percentage of total height plus a small margin
+            const pct = (ch / hh) * 100 + 2
+            setBottomSafePct(pct)
+        }
+
+        update()
+        window.addEventListener("resize", update)
+        return () => window.removeEventListener("resize", update)
+    }, [])
 
     /* ----- HLS attach + collect levels ----- */
     const attach = React.useCallback(
@@ -1019,8 +1042,12 @@ export default function DualViewPlayer_v4_0({
         if (!rect) return
         const dx = ((e.clientX - drag.current.startX) / rect.width) * 100
         const dy = ((e.clientY - drag.current.startY) / rect.height) * 100
+
+        const pipHeight = (pipSize * 9) / 16
         const maxW = 98 - pipSize
-        const maxH = 98 - (pipSize * 9) / 16 - 12 // Added padding for control bar
+        // bottomSafePct keeps PiP above the bar
+        const maxH = 100 - bottomSafePct - pipHeight
+
         let x = clamp(drag.current.baseX + dx, 2, maxW)
         let y = clamp(drag.current.baseY + dy, 2, maxH)
         if (pipSnap) {
@@ -1049,31 +1076,34 @@ export default function DualViewPlayer_v4_0({
         if (!pipWheelResize) return
         e.preventDefault()
         e.stopPropagation()
+
         const dir = e.deltaY > 0 ? -1 : 1
         const newSize = clamp(Math.round(pipSize + dir * 2), pipMinPct, pipMaxPct)
 
-        // Calculate new boundaries with the new size
+        const pipHeight = (newSize * 9) / 16
         const maxW = 98 - newSize
-        const maxH = 98 - (newSize * 9) / 16 - 12 // Added padding for control bar
+        const maxH = 100 - bottomSafePct - pipHeight
 
-        // Adjust position if it would go out of bounds with new size
         const newX = clamp(pipPos.x, 2, maxW)
         const newY = clamp(pipPos.y, 2, maxH)
 
         setPipSize(newSize)
 
-        // Update position if it changed to keep within bounds
         if (newX !== pipPos.x || newY !== pipPos.y) {
             setPipPos({ x: newX, y: newY })
-            // Save position if remember is enabled
             if (pipRememberPosition) {
                 try {
-                    localStorage.setItem(storedKey, JSON.stringify({ x: newX, y: newY }))
-                    localStorage.setItem(storedSizeKey, JSON.stringify(newSize))
+                    localStorage.setItem(
+                        storedKey,
+                        JSON.stringify({ x: newX, y: newY }),
+                    )
+                    localStorage.setItem(
+                        storedSizeKey,
+                        JSON.stringify(newSize),
+                    )
                 } catch {}
             }
         } else if (pipRememberPosition) {
-            // Just save the size if position didn't change
             try {
                 localStorage.setItem(storedSizeKey, JSON.stringify(newSize))
             } catch {}
@@ -1330,6 +1360,7 @@ export default function DualViewPlayer_v4_0({
 
             {/* Controls */}
             <div
+                ref={controlsRef}
                 style={controlsWrap}
                 onPointerDownCapture={stopBubble}
                 onClick={stopBubble}
