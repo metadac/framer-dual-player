@@ -339,12 +339,6 @@ export default function DualViewPlayer_v4_0({
     const [bufferedPct, setBufferedPct] = React.useState(0)
     const [showHelp, setShowHelp] = React.useState(false)
 
-    // Chapters (kept for potential external use)
-    const chapters = React.useMemo(
-        () => chaptersFromArray(timestamps),
-        [timestamps]
-    )
-
     // Quality state
     const [mentorLevels, setMentorLevels] = React.useState<number[]>([])
     const [displayLevels, setDisplayLevels] = React.useState<number[]>([])
