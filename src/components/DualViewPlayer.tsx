@@ -275,6 +275,9 @@ const Icon = {
     ),
 }
 
+/* ===== Constants ===== */
+const STANDARD_RESOLUTIONS = [1080, 720, 540, 360, 240]
+
 /* ===== Component ===== */
 export default function DualViewPlayer_v4_0({
     mentorHtml,
@@ -351,9 +354,13 @@ export default function DualViewPlayer_v4_0({
     const [displayLevels, setDisplayLevels] = React.useState<number[]>([])
     const qualities = React.useMemo(
         () =>
-            Array.from(new Set([...mentorLevels, ...displayLevels])).sort(
-                (a, b) => b - a
-            ),
+            Array.from(
+                new Set([
+                    ...mentorLevels,
+                    ...displayLevels,
+                    ...STANDARD_RESOLUTIONS,
+                ])
+            ).sort((a, b) => b - a),
         [mentorLevels, displayLevels]
     )
     const [quality, setQuality] = React.useState<number | -1>(-1)
@@ -1629,17 +1636,6 @@ export default function DualViewPlayer_v4_0({
                                     >
                                         Auto
                                     </button>
-                                    {qualities.length === 0 && (
-                                        <div
-                                            style={{
-                                                padding: "6px 8px",
-                                                opacity: 0.65,
-                                                fontSize: FONT,
-                                            }}
-                                        >
-                                            Auto (native or single quality)
-                                        </div>
-                                    )}
                                     {qualities.map((h) => (
                                         <button
                                             key={h}
